@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b1e">
+<title>MINIGAME · 打开即玩</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="home-body">
+
+  <header class="site-head">
+    <a class="brand" href="home.html">MINIGAME</a>
+    <span class="site-status"><i></i>在线</span>
+  </header>
+
+  <main class="wrap">
+
+    <section class="intro">
+      <h1>打开即玩</h1>
+      <p>无需安装、无需注册，所有游戏点开即玩。</p>
+    </section>
+
+    <section class="grid">
+
+      <a class="card" href="g/speed.html">
+        <div class="card-cover cover-1">⚡</div>
+        <div class="card-body">
+          <h2>手速测试</h2>
+          <p>10 秒内你能点多少下</p>
+          <span class="tag tag-live">可玩</span>
+        </div>
+      </a>
+
+      <a class="card" href="g/time.html">
+        <div class="card-cover cover-2">⏱</div>
+        <div class="card-body">
+          <h2>时间感知</h2>
+          <p>不看表，数出指定的秒数</p>
+          <span class="tag tag-live">可玩</span>
+        </div>
+      </a>
+
+      <a class="card" href="g/aim.html">
+        <div class="card-cover cover-3">👆</div>
+        <div class="card-body">
+          <h2>精准点击</h2>
+          <p>考验你的点击精度与耐心</p>
+          <span class="tag tag-live">可玩</span>
+        </div>
+      </a>
+
+      <div class="card card-off">
+        <div class="card-cover cover-4">🎯</div>
+        <div class="card-body">
+          <h2>反应力测试</h2>
+          <p>变绿的瞬间立刻按下</p>
+          <span class="tag">维护中</span>
+        </div>
+      </div>
+
+      <div class="card card-off">
+        <div class="card-cover cover-5">🧠</div>
+        <div class="card-body">
+          <h2>记忆序列</h2>
+          <p>记住不断变长的闪烁顺序</p>
+          <span class="tag">维护中</span>
+        </div>
+      </div>
+
+      <div class="card card-off">
+        <div class="card-cover cover-6">🔢</div>
+        <div class="card-body">
+          <h2>数字推算</h2>
+          <p>在限定步数内凑出目标值</p>
+          <span class="tag">维护中</span>
+        </div>
+      </div>
+
+      <div class="card card-off">
+        <div class="card-cover cover-7">🧱</div>
+        <div class="card-body">
+          <h2>俄罗斯娜娜</h2>
+          <p>堆满一行就消掉</p>
+          <span class="tag">维护中</span>
+        </div>
+      </div>
+
+      <div class="card card-off">
+        <div class="card-cover cover-8">🧮</div>
+        <div class="card-body">
+          <h2>2048</h2>
+          <p>同样的数字撞在一起就翻倍</p>
+          <span class="tag">维护中</span>
+        </div>
+      </div>
+
+      <div class="card card-off">
+        <div class="card-cover cover-9">👻</div>
+        <div class="card-body">
+          <h2>吃豆人</h2>
+          <p>吃掉豆子，别被幽灵抓到</p>
+          <span class="tag">维护中</span>
+        </div>
+      </div>
+
+      <div class="card card-off">
+        <div class="card-cover cover-10">🛩</div>
+        <div class="card-body">
+          <h2>打飞机</h2>
+          <p>躲开弹幕，一路打到底</p>
+          <span class="tag">维护中</span>
+        </div>
+      </div>
+
+      <div class="card card-off">
+        <div class="card-cover cover-11">🧻</div>
+        <div class="card-body">
+          <h2>给小朋友擦屁屁</h2>
+          <p>擦不干净就重来</p>
+          <span class="tag">维护中</span>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <div class="overlay" id="offDlg" hidden>
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="offTitle">
+      <p class="dialog-title" id="offTitle">别你妈点了，玩不了</p>
+    </div>
+  </div>
+
+  <footer class="site-foot">
+    MINIGAME · 所有游戏均在本地运行，不收集任何数据<br>
+    本站为整活，弹窗、跳转、音效均为玩笑，不涉及任何真实交易
+  </footer>
+
+  <script src="js/starfield.js"></script>
+  <script>
+  /* 三个整活脚本放到 load 之后再拉，先让首屏出来 */
+  (function () {
+    function pull() {
+      ['prank.js', 'roji.js', 'manager.js'].forEach(function (name) {
+        var s = document.createElement('script');
+        s.src = 'js/' + name;
+        document.body.appendChild(s);
+      });
+    }
+    if (document.readyState === 'complete') { pull(); }
+    else { window.addEventListener('load', pull); }
+  })();
+  </script>
+  <script src="js/egg.js"></script>
+
+  <script>
+  /* 维护中的卡连点两次：弹窗，点空白关掉 */
+  (function () {
+    var grid = document.querySelector('.grid');
+    var dlg = document.getElementById('offDlg');
+    var taps = 0;
+
+    grid.addEventListener('pointerdown', function (event) {
+      var card = event.target.closest ? event.target.closest('.card-off') : null;
+
+      if (!card) {
+        return;
+      }
+
+      taps += 1;
+
+      if (taps >= 2) {
+        taps = 0;
+        dlg.hidden = false;
+      }
+    });
+
+    /* 点暗色空白处关掉 */
+    dlg.addEventListener('pointerdown', function (event) {
+      if (event.target === dlg) {
+        dlg.hidden = true;
+      }
+    });
+  })();
+  </script>
+
+  <script>
+  /* 精准点击 · 篮球彩蛋的「强制跳转」：
+     5 秒内退回目录页也躲不掉，这里按 aim.html 存下的时间点接着跳 */
+  (function () {
+    var KEY = 'aim.jump';
+    var job = null;
+
+    try {
+      job = JSON.parse(window.sessionStorage.getItem(KEY) || 'null');
+      window.sessionStorage.removeItem(KEY);
+    } catch (err) {
+      return;
+    }
+
+    if (!job || typeof job.url !== 'string' || typeof job.at !== 'number') {
+      return;
+    }
+
+    var left = job.at - Date.now();
+
+    /* 过期太久的不补跳，免得半天后突然被带走 */
+    if (left < -60000) {
+      return;
+    }
+
+    /* 只认同站 / B 站 / 爱奇艺，别的一律不跳（防止被塞 javascript: 之类） */
+    var a;
+
+    try {
+      a = document.createElement('a');
+      a.href = String(job.url || '');
+    } catch (err) {
+      return;
+    }
+
+    if ((a.protocol !== 'http:' && a.protocol !== 'https:') ||
+        (a.host !== window.location.host &&
+         !/(^|\.)(bilibili\.com|iqiyi\.com)$/.test(a.hostname.toLowerCase()))) {
+      return;
+    }
+
+    window.setTimeout(function () {
+      window.location.href = a.href;
+    }, left > 0 ? left : 0);
+  })();
+  </script>
+
+</body>
+</html>

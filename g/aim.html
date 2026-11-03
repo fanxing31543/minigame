@@ -1,0 +1,996 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b1e">
+<title>精准点击 · MINIGAME</title>
+<link rel="icon" href="../assets/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* 本页独有样式，随游戏一起放在这个文件里 */
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .play-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 0 16px;
+    text-align: center;
+  }
+
+  .readout {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .readout b {
+    font-size: 42px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .readout span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .readout span[hidden] {
+    display: none;
+  }
+
+  /* 靶场：整块都能点，靶心只是视觉目标 */
+  .board {
+    position: relative;
+    width: min(86vw, 340px);
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    cursor: crosshair;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .board[data-mode="idle"] {
+    cursor: pointer;
+  }
+
+  .board[data-mode="over"] {
+    cursor: default;
+  }
+
+  /* 待机时留个虚线靶位，别看起来像一块空面板 */
+  .board[data-mode="idle"]::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 88px;
+    height: 88px;
+    margin: -44px 0 0 -44px;
+    border: 2px dashed #cfd4dc;
+    border-radius: 50%;
+  }
+
+  .target {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 0;
+    background: var(--primary);
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    pointer-events: none;
+  }
+
+  .target::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    margin: -3px 0 0 -3px;
+    background: #fff;
+    border-radius: 50%;
+  }
+
+  .target[hidden] {
+    display: none;
+  }
+
+  .target.is-hit {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+
+  /* 彩蛋：靶子换成那只鸟，白心圆点让位给图 */
+  .target.is-face {
+    background: none;
+    box-shadow: none;
+  }
+
+  .target.is-face::after {
+    display: none;
+  }
+
+  .face {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
+  .face[hidden] {
+    display: none;
+  }
+
+  /* 彩蛋：靶子换成篮球 */
+  .target.is-ball {
+    background: url("../assets/ball.svg") center / contain no-repeat;
+    box-shadow: none;
+  }
+
+  .target.is-ball::after {
+    display: none;
+  }
+
+  /* 没点中时露一下：灰点 = 你点的位置，红圈 = 靶心 */
+  .mark {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    background: #9ca3af;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .ring {
+    position: absolute;
+    border: 2px solid var(--danger);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .mark[hidden],
+  .ring[hidden] {
+    display: none;
+  }
+
+  .hint {
+    min-height: 1.6em;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .best {
+    min-height: 1.2em;
+    margin: 0;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  .best[hidden] {
+    display: none;
+  }
+
+  .pat {
+    width: 84px;
+    height: 84px;
+    object-fit: contain;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
+  .pat[hidden] {
+    display: none;
+  }
+
+  .pat-pop {
+    animation: pat-in 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  }
+
+  @keyframes pat-in {
+    from { opacity: 0; transform: scale(0.82); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* 彩蛋结算里的大笑图，占贴纸那个位置 */
+  .egg-pic {
+    height: 120px;
+    max-width: 70vw;
+    object-fit: contain;
+    -webkit-user-drag: none;
+    user-select: none;
+    animation: pat-in 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  }
+
+  .egg-pic[hidden] {
+    display: none;
+  }
+
+  /* 篮球彩蛋结算配图（照片，保留原比例，和鸟图同高，免得小屏挤掉按钮） */
+  .egg-pic.is-kun {
+    height: 120px;
+    width: auto;
+    border-radius: 10px;
+  }
+
+  .dlg-btn {
+    width: 100%;
+    height: 44px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 650;
+    color: #fff;
+    cursor: pointer;
+    background: var(--primary);
+    border: none;
+    border-radius: 10px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .dlg-btn:active {
+    opacity: 0.9;
+  }
+
+  .tail {
+    padding: 0 24px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .retry {
+    display: block;
+    width: 100%;
+    height: 48px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 650;
+    color: #fff;
+    cursor: pointer;
+    background: var(--primary);
+    border: none;
+    border-radius: 12px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .retry:active {
+    opacity: 0.9;
+  }
+
+  .retry[hidden] {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .target { transition: none; }
+    .pat-pop { animation: none; }
+    .egg-pic { animation: none; }
+  }
+</style>
+</head>
+<body class="game-body">
+
+  <header class="game-head">
+    <a class="back" href="../home.html" aria-label="返回目录">‹</a>
+    <span class="game-title">精准点击</span>
+    <span class="game-sub">10 轮</span>
+  </header>
+
+  <main class="stage">
+    <div class="play-area">
+      <p class="readout">
+        <b id="value">—</b>
+        <span id="meta">靶心</span>
+        <span id="sub" hidden></span>
+      </p>
+
+      <div class="board" id="board" data-mode="idle" role="button" tabindex="0"
+           aria-label="点棋盘开始">
+        <div class="target" id="target" hidden>
+          <img class="face" id="face" alt="" hidden>
+        </div>
+        <i class="mark" id="mark" hidden></i>
+        <i class="ring" id="ring" hidden></i>
+      </div>
+
+      <p class="hint" id="hint">点棋盘开始</p>
+      <p class="best" id="best" hidden></p>
+
+      <img class="pat" id="pat" src="../assets/pat-3.png" alt="" hidden>
+      <img class="egg-pic" id="eggPic" src="../assets/aim-bird-2.png" alt="" hidden>
+    </div>
+
+    <div class="tail">
+      <button class="retry" id="retry" type="button" hidden>重新测试</button>
+    </div>
+  </main>
+
+  <div class="overlay" id="jumpDlg" hidden>
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="jumpTitle">
+      <p class="dialog-title" id="jumpTitle">你以为我会跳转吗</p>
+      <button class="dlg-btn" id="jumpBtn" type="button">关掉</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="hiDlg" hidden>
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="hiTitle">
+      <p class="dialog-title" id="hiTitle">欸嘿</p>
+    </div>
+  </div>
+
+  <audio id="bgm" src="../assets/aim-bgm.m4a" loop preload="none"></audio>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================================================
+       可调参数
+       临时改规则时，在本脚本之前定义 window.GAME_CONFIG 即可，
+       例如 { rounds: 5, minDia: 60, eggRate: 1 }。
+       ============================================================ */
+
+    var ROUNDS = 10;                /* 每局几个靶心 */
+    var MAX_DIA = 88;               /* 第一轮靶心直径（px） */
+    var MIN_DIA = 44;               /* 最后一轮靶心直径（px），不小于 44 */
+    var EDGE_PAD = 12;              /* 靶心离棋盘边的留白 */
+    var HIT_HOLD = 220;             /* 命中后的过场时长 */
+    var MISS_HOLD = 620;            /* 脱靶后露位置的时间 */
+
+    /* 彩蛋：每局 50% 触发，触发后鸟 / 篮球各一半
+       - 鸟：整局靶子换呆鸟，点中后剩下的全变大笑版，并循环放音频
+       - 篮球：整局靶子换成篮球，结算固定文案并假装跳转 */
+    var EGG_RATE = 0.5;
+    var EGG_COMMENT = '哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈哈';
+    var BALL_COMMENT = '只 因 你 太 美';
+    var DEFAULT_JUMP = 'https://www.bilibili.com/video/BV1J4411v7g6/?spm_id_from=333.337.top_right_bar_window_history.content.click&vd_source=803992010867757d64d19fe17dd301bd';
+    var JUMP_URL = DEFAULT_JUMP;
+    var JUMP_SHOW = 1200;           /* 结算先露个脸，再弹「你以为我会跳转吗」 */
+    var JUMP_DELAY = 5000;          /* 弹窗挂 5 秒再走 */
+    var BALL_KEY = 'aim.ball.back'; /* 跳走前写 sessionStorage，回来认得出 */
+    var JUMP_KEY = 'aim.jump';      /* 待跳转：退回目录页后由 home.html 接着跳 */
+
+    var BEST_KEY = 'aim.best';      /* 个人最佳：最小平均偏移率（%） */
+    var PLAYS_KEY = 'aim.plays';    /* 累计开局次数：第一次玩不出彩蛋 */
+
+    function cfg(key, def) {
+      var c = window.GAME_CONFIG || {};
+      return typeof c[key] === 'number' ? c[key] : def;
+    }
+
+    /* 跳转白名单：只放行同站、B 站、爱奇艺，别的（含 javascript:）一律不认 */
+    var JUMP_HOST = /(^|\.)(bilibili\.com|iqiyi\.com)$/;
+
+    function safeJump(u) {
+      var a;
+
+      try {
+        a = document.createElement('a');
+        a.href = String(u || '');
+      } catch (err) {
+        return '';
+      }
+
+      if (a.protocol !== 'http:' && a.protocol !== 'https:') {
+        return '';
+      }
+
+      if (a.host === window.location.host) {
+        return a.href;
+      }
+
+      return JUMP_HOST.test(a.hostname.toLowerCase()) ? a.href : '';
+    }
+
+    /* ---------- DOM ---------- */
+
+    var board = document.getElementById('board');
+    var targetEl = document.getElementById('target');
+    var markEl = document.getElementById('mark');
+    var ringEl = document.getElementById('ring');
+    var valueEl = document.getElementById('value');
+    var metaEl = document.getElementById('meta');
+    var subEl = document.getElementById('sub');
+    var hintEl = document.getElementById('hint');
+    var bestEl = document.getElementById('best');
+    var retryEl = document.getElementById('retry');
+    var patEl = document.getElementById('pat');
+    var eggPicEl = document.getElementById('eggPic');
+    var faceEl = document.getElementById('face');
+    var bgmEl = document.getElementById('bgm');
+
+    var jumpDlg = document.getElementById('jumpDlg');
+    var jumpBtn = document.getElementById('jumpBtn');
+    var hiDlg = document.getElementById('hiDlg');
+
+    /* 调试：?egg=ball 直接看篮球彩蛋，?egg=bird / bird2 看鸟，?egg=none 强制没有；
+       ?bird=0|1|2 是老写法，等价于对应的 egg 值；?jump=<url> 换跳转地址（只认白名单域名） */
+    var FORCE_EGG = -1;             /* -1 不强制 | 0 普通 | 1 呆鸟 | 2 大笑鸟 | 3 篮球 */
+
+    try {
+      var qs = String(window.location.search || '');
+      var em = /[?&]egg=(none|bird|bird2|ball)/.exec(qs);
+      var bm = /[?&]bird=([012])/.exec(qs);
+      var jm = /[?&]jump=([^&]+)/.exec(qs);
+
+      if (em) {
+        FORCE_EGG = { none: 0, bird: 1, bird2: 2, ball: 3 }[em[1]];
+      }
+
+      if (bm) {
+        FORCE_EGG = parseInt(bm[1], 10);
+      }
+
+      if (jm) {
+        var jurl = safeJump(decodeURIComponent(jm[1]));
+
+        if (jurl) {
+          JUMP_URL = jurl;
+        }
+      }
+    } catch (err) {
+      FORCE_EGG = -1;
+    }
+
+    /* ---------- 状态 ---------- */
+
+    var mode = 'idle';              /* idle | play | over */
+    var busy = false;               /* 过场中，先不收点击 */
+    var round = 0;                  /* 当前第几轮，从 0 开始 */
+    var hits = 0;
+    var offs = [];                  /* 每轮偏移（px） */
+    var ratios = [];                /* 每轮偏移率 d/R */
+    var cur = { cx: 0, cy: 0, r: 0, dia: 0 };
+    var prev = null;                /* 上一个靶心位置 */
+    var eggMode = 0;                /* 彩蛋：0 普通 | 1 呆鸟 | 2 大笑鸟 | 3 篮球 */
+    var jumpTimer = 0;              /* 篮球彩蛋的跳转定时器 */
+
+    function rounds() { return Math.round(cfg('rounds', ROUNDS)); }
+    function maxDia() { return cfg('maxDia', MAX_DIA); }
+    function minDia() { return cfg('minDia', MIN_DIA); }
+
+    /* 直径从 maxDia 线性收到 minDia */
+    function diaFor(i) {
+      var n = Math.max(1, rounds() - 1);
+      var dia = maxDia() + (minDia() - maxDia()) * (i / n);
+      return Math.max(minDia(), Math.round(dia));
+    }
+
+    /* ---------- 摆靶心 ---------- */
+
+    function place() {
+      var w = board.clientWidth;
+      var h = board.clientHeight;
+      var dia = diaFor(round);
+      var r = dia / 2;
+      var pad = Math.min(r + EDGE_PAD, Math.max(4, w / 2 - 4));
+      var gap = prev ? prev.r + r + 6 : 0;
+      var cx = 0;
+      var cy = 0;
+      var tries = 0;
+
+      do {
+        cx = pad + Math.random() * Math.max(1, w - pad * 2);
+        cy = pad + Math.random() * Math.max(1, h - pad * 2);
+        tries += 1;
+      } while (prev && tries < 40 &&
+               Math.sqrt(Math.pow(cx - prev.cx, 2) + Math.pow(cy - prev.cy, 2)) < gap);
+
+      cur = { cx: cx, cy: cy, r: r, dia: dia };
+
+      targetEl.style.width = dia + 'px';
+      targetEl.style.height = dia + 'px';
+      targetEl.style.left = (cx - r) + 'px';
+      targetEl.style.top = (cy - r) + 'px';
+      targetEl.classList.remove('is-hit');
+      targetEl.hidden = false;
+
+      paintTarget();
+      busy = false;
+      paintPlay();
+    }
+
+    /* 靶心是蓝点、那只鸟，还是篮球 */
+    function paintTarget() {
+      targetEl.classList.remove('is-face', 'is-ball');
+      faceEl.hidden = true;
+
+      if (eggMode === 1 || eggMode === 2) {
+        faceEl.src = '../assets/' + (eggMode === 2 ? 'aim-bird-2' : 'aim-bird-1') + '.png';
+        faceEl.hidden = false;
+        targetEl.classList.add('is-face');
+        return;
+      }
+
+      if (eggMode === 3) {
+        targetEl.classList.add('is-ball');
+      }
+    }
+
+    function clearMarks() {
+      markEl.hidden = true;
+      ringEl.hidden = true;
+      targetEl.hidden = true;
+    }
+
+    /* ---------- 界面 ---------- */
+
+    function paintPlay() {
+      valueEl.textContent = String(hits);
+      metaEl.textContent = '第 ' + (round + 1) + ' / ' + rounds() + ' 轮';
+      subEl.hidden = true;
+      hintEl.textContent = '点在靶心里';
+    }
+
+    function showMiss(x, y) {
+      markEl.style.left = x + 'px';
+      markEl.style.top = y + 'px';
+      markEl.hidden = false;
+
+      ringEl.style.left = (cur.cx - cur.r) + 'px';
+      ringEl.style.top = (cur.cy - cur.r) + 'px';
+      ringEl.style.width = cur.dia + 'px';
+      ringEl.style.height = cur.dia + 'px';
+      ringEl.hidden = false;
+
+      targetEl.hidden = true;
+    }
+
+    function showSticker(name) {
+      if (!name) {
+        patEl.hidden = true;
+        return;
+      }
+
+      patEl.src = '../assets/' + name + '.png';
+      patEl.hidden = false;
+      patEl.classList.remove('pat-pop');
+      void patEl.offsetWidth;
+      patEl.classList.add('pat-pop');
+    }
+
+    /* ---------- 音频 ---------- */
+
+    function playBgm() {
+      /* 元数据没到之前设 currentTime 会抛异常，会连带跳过 play()，所以分开写 */
+      try {
+        bgmEl.currentTime = 0;
+      } catch (err) {
+        /* 还没加载好就从头放 */
+      }
+
+      try {
+        var p = bgmEl.play();
+        if (p && typeof p.catch === 'function') {
+          p.catch(function () {
+            /* 被自动播放策略拦了就静音，不影响继续玩 */
+          });
+        }
+      } catch (err) {
+        /* 忽略 */
+      }
+    }
+
+    function stopBgm() {
+      try {
+        bgmEl.pause();
+        bgmEl.currentTime = 0;
+      } catch (err) {
+        /* 忽略 */
+      }
+    }
+
+    /* ---------- 个人最佳 ---------- */
+
+    function readBest() {
+      try {
+        var v = parseFloat(window.localStorage.getItem(BEST_KEY));
+        return isFinite(v) && v > 0 ? v : 0;
+      } catch (err) {
+        return 0;
+      }
+    }
+
+    function writeBest(v) {
+      try {
+        window.localStorage.setItem(BEST_KEY, String(v));
+      } catch (err) {
+        /* 存不进去就不显示，不影响玩 */
+      }
+    }
+
+    /* ---------- 开局次数（第一次玩不出彩蛋） ---------- */
+
+    function readPlays() {
+      try {
+        return parseInt(window.localStorage.getItem(PLAYS_KEY), 10) || 0;
+      } catch (err) {
+        return 0;
+      }
+    }
+
+    function writePlays(n) {
+      try {
+        window.localStorage.setItem(PLAYS_KEY, String(n));
+      } catch (err) {
+        /* 存不进去就永远当第一次，宁可不触发也不乱触发 */
+      }
+    }
+
+    /* ---------- 三段状态 ---------- */
+
+    /* 第一次玩不出彩蛋；之后 50% 出彩蛋，出了以后鸟 / 篮球各一半 */
+    function rollEgg(played) {
+      if (FORCE_EGG >= 0) {
+        return FORCE_EGG;
+      }
+
+      if (played === 0) {
+        return 0;
+      }
+
+      if (Math.random() >= cfg('eggRate', EGG_RATE)) {
+        return 0;
+      }
+
+      return Math.random() < 0.5 ? 1 : 3;
+    }
+
+    function start() {
+      mode = 'play';
+      busy = false;
+      round = 0;
+      hits = 0;
+      offs = [];
+      ratios = [];
+      prev = null;
+
+      /* 彩蛋每局重掷；上一局留下的音频在这里收掉。
+         跳转定时器故意不清：弹窗关了、甚至开了下一局，到点照样跳 */
+      var played = readPlays();
+      writePlays(played + 1);
+
+      jumpDlg.hidden = true;
+      hiDlg.hidden = true;
+      stopBgm();
+      eggMode = rollEgg(played);
+
+      board.dataset.mode = 'play';
+      board.setAttribute('aria-label', '靶场');
+
+      retryEl.hidden = true;
+      patEl.hidden = true;
+      eggPicEl.hidden = true;
+      bestEl.hidden = true;
+
+      clearMarks();
+      place();
+    }
+
+    function nextRound() {
+      if (mode !== 'play') {
+        return;
+      }
+
+      round += 1;
+
+      if (round >= rounds()) {
+        finish();
+        return;
+      }
+
+      clearMarks();
+      place();
+    }
+
+    function finish() {
+      mode = 'over';
+      board.dataset.mode = 'over';
+      board.setAttribute('aria-label', '已结束');
+
+      clearMarks();
+
+      var n = rounds();
+      var sum = 0;
+      var i;
+
+      for (i = 0; i < ratios.length; i++) {
+        sum += ratios[i];
+      }
+
+      var avgRatio = ratios.length ? sum / ratios.length : 1;
+      var avgPx = 0;
+
+      for (i = 0; i < offs.length; i++) {
+        avgPx += offs[i];
+      }
+
+      avgPx = offs.length ? Math.round(avgPx / offs.length) : 0;
+
+      var pct = avgRatio * 100;
+      var grade = evaluate(hits, avgRatio);
+      var birdEgg = eggMode === 2;
+      var ballEgg = eggMode === 3;
+
+      valueEl.textContent = String(hits);
+      metaEl.textContent = '命中 · 共 ' + n + ' 轮';
+      subEl.hidden = false;
+      subEl.textContent = '平均偏移 ' + avgPx + 'px · ' + pct.toFixed(1) + '%';
+
+      if (birdEgg) {
+        hintEl.textContent = EGG_COMMENT;
+        showEggPic('bird');
+        showSticker('');
+      } else if (ballEgg) {
+        hintEl.textContent = BALL_COMMENT;
+        showEggPic('kun');
+        showSticker('');
+      } else {
+        hintEl.textContent = grade.text;
+        showSticker(grade.sticker);
+        eggPicEl.hidden = true;
+      }
+
+      var best = readBest();
+      var isNew = !best || pct < best;
+
+      if (isNew) {
+        writeBest(pct);
+        best = pct;
+      }
+
+      bestEl.hidden = false;
+      bestEl.textContent = '个人最佳 ' + best.toFixed(1) + '%' + (isNew ? '（新纪录）' : '');
+
+      retryEl.hidden = false;
+
+      if (ballEgg) {
+        scheduleJump();
+      }
+    }
+
+    /* ---------- 彩蛋贴图 ---------- */
+
+    function showEggPic(kind) {
+      if (kind === 'kun') {
+        eggPicEl.className = 'egg-pic is-kun';
+        eggPicEl.src = '../assets/aim-kun.png';
+      } else {
+        eggPicEl.className = 'egg-pic';
+        eggPicEl.src = '../assets/aim-bird-2.png';
+      }
+
+      eggPicEl.hidden = false;
+    }
+
+    /* ---------- 篮球彩蛋：假跳转 ---------- */
+
+    function scheduleJump() {
+      /* 先把「待跳转」写进 sessionStorage：5 秒内退回目录页也躲不掉，
+         home.html 会按这个时间点接着跳 */
+      try {
+        window.sessionStorage.setItem(JUMP_KEY, JSON.stringify({
+          url: safeJump(JUMP_URL) || DEFAULT_JUMP,
+          at: Date.now() + JUMP_SHOW + JUMP_DELAY
+        }));
+      } catch (err) {
+        /* 存不进去就只有本页会跳 */
+      }
+
+      jumpTimer = window.setTimeout(function () {
+        jumpDlg.hidden = false;
+        jumpTimer = window.setTimeout(goJump, JUMP_DELAY);
+      }, JUMP_SHOW);
+    }
+
+    function goJump() {
+      try {
+        window.sessionStorage.removeItem(JUMP_KEY);
+      } catch (err) {
+        /* 忽略 */
+      }
+
+      try {
+        window.sessionStorage.setItem(BALL_KEY, '1');
+      } catch (err) {
+        /* 存不进去也得跳 */
+      }
+
+      window.location.href = safeJump(JUMP_URL) || DEFAULT_JUMP;
+    }
+
+    /* 从 B 站回来（含 bfcache 的 pageshow）弹「欸嘿」 */
+    function checkBallReturn() {
+      var hit = false;
+
+      try {
+        hit = window.sessionStorage.getItem(BALL_KEY) === '1';
+      } catch (err) {
+        return;
+      }
+
+      if (!hit) {
+        return;
+      }
+
+      try {
+        window.sessionStorage.removeItem(BALL_KEY);
+      } catch (err) {
+        /* 忽略 */
+      }
+
+      window.clearTimeout(jumpTimer);
+      jumpDlg.hidden = true;
+      hiDlg.hidden = false;
+    }
+
+    /* 命中数是主判据，平均偏移率只用来卡「非人类」那一档 */
+    function evaluate(n, p) {
+      if (n === rounds() && p <= 0.15) {
+        return { text: '检测到非人类操作，请重新验证', sticker: '' };
+      }
+      if (n >= 9) {
+        return { text: '准头不错，你是不是干这行的', sticker: 'pat-3' };
+      }
+      if (n >= 7) {
+        return { text: '正常人类水平', sticker: 'pat-1' };
+      }
+      if (n >= 5) {
+        return { text: '手在抖吧', sticker: 'pat-2' };
+      }
+      return { text: '你点的是靶子吗', sticker: 'pat-2' };
+    }
+
+    /* ---------- 点击 ---------- */
+
+    function tap(x, y) {
+      if (mode !== 'play' || busy) {
+        return;
+      }
+
+      var d = Math.sqrt(Math.pow(x - cur.cx, 2) + Math.pow(y - cur.cy, 2));
+      var ratio = d / cur.r;
+
+      offs.push(d);
+      ratios.push(ratio);
+      busy = true;
+
+      if (d <= cur.r) {
+        hits += 1;
+        valueEl.textContent = String(hits);
+        targetEl.classList.add('is-hit');
+
+        /* 打中那只鸟：剩下的靶子全变大笑版，并开始循环（停在用户的点击手势里，免被自动播放策略拦） */
+        if (eggMode === 1) {
+          eggMode = 2;
+          playBgm();
+        }
+
+        window.setTimeout(function () {
+          clearMarks();
+          prev = { cx: cur.cx, cy: cur.cy, r: cur.r };
+          nextRound();
+        }, HIT_HOLD);
+        return;
+      }
+
+      showMiss(x, y);
+      window.setTimeout(function () {
+        clearMarks();
+        prev = { cx: cur.cx, cy: cur.cy, r: cur.r };
+        nextRound();
+      }, MISS_HOLD);
+    }
+
+    board.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+
+      if (mode === 'idle') {
+        start();
+        return;
+      }
+
+      if (mode !== 'play') {
+        return;
+      }
+
+      var rect = board.getBoundingClientRect();
+      tap(event.clientX - rect.left, event.clientY - rect.top);
+    });
+
+    /* 手机上长按会弹菜单，挡掉 */
+    board.addEventListener('contextmenu', function (event) {
+      event.preventDefault();
+    });
+
+    retryEl.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+
+      if (mode === 'over') {
+        start();
+      }
+    });
+
+    /* 「欸嘿」没有按钮，点暗色背景关掉 */
+    hiDlg.addEventListener('pointerdown', function (event) {
+      if (event.target === hiDlg) {
+        hiDlg.hidden = true;
+      }
+    });
+
+    /* 关掉只是把弹窗收起来，5 秒到点照样跳 */
+    jumpBtn.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+      jumpDlg.hidden = true;
+    });
+
+    window.addEventListener('pageshow', checkBallReturn);
+
+    /* ---------- 初始 ---------- */
+
+    board.dataset.mode = 'idle';
+    valueEl.textContent = '—';
+    metaEl.textContent = '靶心';
+    hintEl.textContent = '点棋盘开始';
+
+    checkBallReturn();
+
+    /* App 壳从浏览器返回时调用：收掉跳转弹窗，恢复可点 */
+    window.__appResume = function () {
+      window.clearTimeout(jumpTimer);
+      jumpTimer = 0;
+      jumpDlg.hidden = true;
+      hiDlg.hidden = true;
+    };
+
+    /* 窗口尺寸变了（转屏）就按新的棋盘重新摆一次，别让靶心跑出去 */
+    window.addEventListener('resize', function () {
+      if (mode === 'play' && !busy) {
+        place();
+      }
+    });
+  })();
+  </script>
+
+  <script src="../js/starfield.js"></script>
+  <script>
+  /* 三个整活脚本放到 load 之后再拉，先让首屏出来 */
+  (function () {
+    function pull() {
+      ['prank.js', 'roji.js', 'manager.js'].forEach(function (name) {
+        var s = document.createElement('script');
+        s.src = '../js/' + name;
+        document.body.appendChild(s);
+      });
+    }
+    if (document.readyState === 'complete') { pull(); }
+    else { window.addEventListener('load', pull); }
+  })();
+  </script>
+  <script src="../js/egg.js"></script>
+
+</body>
+</html>

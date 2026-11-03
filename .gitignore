@@ -1,0 +1,14 @@
+# 构建产物
+android/out/
+android/app/src/main/assets/
+*.apk
+*.zip
+
+# 签名密钥：绝对不要提交（提交了别人就能伪造你的更新）
+*.keystore
+*.jks
+
+# 系统垃圾
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,536 @@
+/* ============================================================
+   全站样式
+   - .gate-*  → index.html 的人机验证页
+   - .home-body → home.html 的纯黑留空页
+   ============================================================ */
+
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --line: #e5e7eb;
+  --text: #14171c;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --danger: #dc2626;
+  --radius: 14px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* 星空皮肤：铺在 html 上，游戏页的白色 .game-body 会盖住它 */
+html {
+  background: #080b1e url("../assets/sky.jpg") center top / cover no-repeat fixed;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: var(--text);
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 鼠标换成小星星（触屏设备上没有光标，不影响） */
+* {
+  cursor: url("../assets/cursor-star.png") 16 16, auto !important;
+}
+
+/* 星空画布：铺满视口，压在内容下面，不接收点击 */
+.starfield {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* ---------- 验证页 ---------- */
+
+.gate-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.gate {
+  width: 100%;
+  max-width: 440px;
+  padding: 26px 26px 20px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.07);
+}
+
+.gate-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.gate-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--primary);
+  background: #eff4ff;
+  border-radius: 999px;
+}
+
+.gate-step {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.gate-title {
+  margin: 0 0 8px;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.gate-sub {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.gate-question {
+  padding: 18px;
+  background: #fafbfc;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.gate-q {
+  display: block;
+  margin-bottom: 14px;
+  font-size: 15px;
+  font-weight: 550;
+}
+
+.gate-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn {
+  flex: 1;
+  padding: 10px 16px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 550;
+  color: var(--text);
+  cursor: pointer;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* 「是 / 不是」平时是白底，只有鼠标悬停或手指按上去才变蓝 */
+.gate-actions .btn:hover:not(:disabled),
+.gate-actions .btn:active:not(:disabled) {
+  color: #fff;
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* ---------- 「不是」的弹窗 ---------- */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 18, 22, 0.55);
+  backdrop-filter: blur(2px);
+  animation: fade-in 0.18s ease-out;
+}
+
+.overlay[hidden] {
+  display: none;
+}
+
+.dialog {
+  width: 100%;
+  max-width: 380px;
+  padding: 26px 24px 22px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  animation: pop-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  text-align: center;
+}
+
+.dialog-title {
+  margin: 0 0 10px;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.5;
+  color: var(--danger);
+}
+
+.dialog-count {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dialog-count b {
+  display: inline-block;
+  min-width: 1em;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.dialog-bar {
+  height: 4px;
+  overflow: hidden;
+  background: #eef0f3;
+  border-radius: 999px;
+}
+
+.dialog-bar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--danger);
+  border-radius: inherit;
+  transition: width 1s linear;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ============================================================
+   首页：游戏目录
+   ============================================================ */
+
+.home-body {
+  background: transparent;
+}
+
+.site-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 18px 20px 14px;
+}
+
+.brand {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #eef2ff;
+  text-decoration: none;
+}
+
+.site-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #4ade80;
+}
+
+.site-status i {
+  width: 6px;
+  height: 6px;
+  background: #22c55e;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 6px 20px 48px;
+}
+
+.intro h1 {
+  margin: 6px 0 8px;
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  color: #f4f7ff;
+}
+
+.intro p {
+  margin: 0 0 26px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #a9b4d2;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+@media (min-width: 620px) {
+  .grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 900px) {
+  .grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+a.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(16, 24, 40, 0.08);
+}
+
+a.card:active {
+  transform: none;
+}
+
+.card-cover {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 10;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.cover-1 { background: linear-gradient(135deg, #e0edff, #c7dcff); }
+.cover-2 { background: linear-gradient(135deg, #d8f3ee, #bfe9e1); }
+.cover-3 { background: linear-gradient(135deg, #e8e2ff, #d6ccff); }
+.cover-4 { background: linear-gradient(135deg, #ffe8d6, #ffd6b3); }
+.cover-5 { background: linear-gradient(135deg, #ffe0ec, #ffc9dd); }
+.cover-6 { background: linear-gradient(135deg, #dff5e1, #c3ecc7); }
+.cover-7 { background: linear-gradient(135deg, #e2e8f0, #cbd5e1); }
+.cover-8 { background: linear-gradient(135deg, #fef3c7, #fde68a); }
+.cover-9 { background: linear-gradient(135deg, #e6f7cd, #cdee9d); }
+.cover-10 { background: linear-gradient(135deg, #d6f2ff, #b3e4fb); }
+.cover-11 { background: linear-gradient(135deg, #ffe3f1, #ffc6e2); }
+
+.card-body {
+  padding: 12px 14px 14px;
+}
+
+.card-body h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.card-body p {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #6b7280;
+  background: #f1f3f5;
+  border-radius: 999px;
+}
+
+.tag-live {
+  color: #15803d;
+  background: #e8f5ec;
+}
+
+/* 维护中的卡：不整卡半透明（深色星空会从卡片里透上来），改成内容变灰 */
+.card-off {
+  background: #f8f9fc;
+}
+
+.card-off .card-cover {
+  opacity: 0.45;
+}
+
+.card-off .card-body h2 {
+  color: #7b8398;
+}
+
+.card-off .card-body p {
+  color: #9aa1b3;
+}
+
+.card-off .tag {
+  color: #9aa1b3;
+  background: #eef0f5;
+}
+
+.site-foot {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 26px 20px calc(28px + env(safe-area-inset-bottom));
+  font-size: 12px;
+  color: #8e9ac0;
+  text-align: center;
+}
+
+/* ============================================================
+   游戏页通用外壳（每个游戏共用）
+   ============================================================ */
+
+.game-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: transparent;
+  color: #e8ecff;
+  overscroll-behavior: none;
+}
+
+/* 深色皮肤下的游戏页文字（各页自己的 .hint / .readout 都在这层被压过） */
+.game-body .game-title {
+  color: #eef2ff;
+}
+
+.game-body .back {
+  color: #dfe6ff;
+}
+
+.game-body .back:active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.game-body .game-sub {
+  color: #98a3c6;
+}
+
+.game-body .readout b {
+  color: #f4f7ff;
+}
+
+.game-body .readout span {
+  color: #98a3c6;
+}
+
+.game-body .hint {
+  color: #98a3c6;
+}
+
+.game-body .best {
+  color: #8e9ac0;
+}
+
+/* 精准点击的棋盘：原来是浅灰块，深色下改成半透明玻璃 */
+.game-body .board {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.game-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+}
+
+.back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 12px;
+}
+
+.back:active {
+  background: #f1f3f5;
+}
+
+.game-title {
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.game-sub {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay,
+  .dialog,
+  .dialog-bar i {
+    animation: none;
+    transition: none;
+  }
+}

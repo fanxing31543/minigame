@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="篮球">
+  <defs>
+    <radialGradient id="ball" cx="36%" cy="30%" r="78%">
+      <stop offset="0" stop-color="#fdba74"/>
+      <stop offset="0.45" stop-color="#f97316"/>
+      <stop offset="1" stop-color="#9a3412"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="47" fill="url(#ball)"/>
+  <g fill="none" stroke="#3f1a06" stroke-width="2.6" stroke-linecap="round" opacity="0.85">
+    <path d="M50 3 V97"/>
+    <path d="M3 50 H97"/>
+    <path d="M21 8 C51 30 51 70 21 92"/>
+    <path d="M79 8 C49 30 49 70 79 92"/>
+  </g>
+  <circle cx="50" cy="50" r="47" fill="none" stroke="#3f1a06" stroke-width="2.6" opacity="0.85"/>
+</svg>

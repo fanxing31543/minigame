@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>安全验证</title>
+<link rel="icon" href="assets/favicon.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="gate-body">
+
+  <main class="gate">
+    <div class="gate-head">
+      <span class="gate-badge">安全验证</span>
+      <span class="gate-step">第 1 步 / 共 1 步</span>
+    </div>
+
+    <h1 class="gate-title">请确认您是人类</h1>
+    <p class="gate-sub">为保障服务稳定，访问前需完成一次身份确认。</p>
+
+    <div class="gate-question">
+      <span class="gate-q">您是人类吗？</span>
+      <div class="gate-actions">
+        <button type="button" class="btn" id="btn-yes">是</button>
+        <button type="button" class="btn" id="btn-no">不是</button>
+      </div>
+    </div>
+  </main>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title" aria-describedby="dlg-count">
+      <p class="dialog-title" id="dlg-title">可恶的机器人竟然伪装人类！</p>
+      <p class="dialog-count" id="dlg-count">正在将你重定向至安全页面 <b id="count">3</b></p>
+      <div class="dialog-bar"><i id="bar"></i></div>
+    </div>
+  </div>
+
+  <script src="js/starfield.js"></script>
+  <script src="js/gate.js"></script>
+  <script>
+  /* 三个整活脚本放到 load 之后再拉，先让首屏出来 */
+  (function () {
+    function pull() {
+      ['prank.js', 'roji.js', 'manager.js'].forEach(function (name) {
+        var s = document.createElement('script');
+        s.src = 'js/' + name;
+        document.body.appendChild(s);
+      });
+    }
+    if (document.readyState === 'complete') { pull(); }
+    else { window.addEventListener('load', pull); }
+  })();
+  </script>
+</body>
+</html>

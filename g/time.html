@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b1e">
+<title>时间感知 · MINIGAME</title>
+<link rel="icon" href="../assets/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* 本页独有样式，随游戏一起放在这个文件里 */
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .play-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 0 20px;
+    text-align: center;
+  }
+
+  .readout {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .readout[hidden] {
+    display: none;
+  }
+
+  .readout b {
+    font-size: 42px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .readout span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .pad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: min(64vw, 260px);
+    aspect-ratio: 1;
+    padding: 0;
+    font-family: inherit;
+    color: #fff;
+    cursor: pointer;
+    background: var(--primary);
+    border: none;
+    border-radius: 50%;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.08s ease, background-color 0.18s ease, color 0.18s ease;
+  }
+
+  .pad:active {
+    transform: scale(0.97);
+  }
+
+  .pad[data-mode="play"] {
+    background: #111827;
+  }
+
+  .pad[data-mode="over"] {
+    color: #64748b;
+    background: #cbd5e1;
+    pointer-events: none;
+  }
+
+  .pad-label {
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+  }
+
+  .hint {
+    min-height: 1.6em;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .readout span[hidden] {
+    display: none;
+  }
+
+  /* 自己定时间 */
+  .custom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .custom[hidden] {
+    display: none;
+  }
+
+  .custom-open {
+    min-height: 44px;
+    padding: 0 12px;
+    font-family: inherit;
+    font-size: 12px;
+    color: #9ca3af;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .custom-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .custom-box[hidden],
+  .custom-back[hidden],
+  .custom-err[hidden] {
+    display: none;
+  }
+
+  .custom-input {
+    width: 84px;
+    height: 44px;
+    padding: 0 8px;
+    font-family: inherit;
+    font-size: 15px;
+    text-align: center;
+    color: var(--text);
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .custom-input:focus {
+    border-color: var(--primary);
+    outline: 2px solid rgba(37, 99, 235, 0.22);
+    outline-offset: 1px;
+  }
+
+  .custom-unit {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .custom-ok {
+    height: 44px;
+    padding: 0 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    color: #fff;
+    cursor: pointer;
+    background: var(--primary);
+    border: none;
+    border-radius: 10px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .custom-ok:active {
+    opacity: 0.9;
+  }
+
+  .custom-back {
+    height: 44px;
+    padding: 0 6px;
+    font-family: inherit;
+    font-size: 12px;
+    color: #9ca3af;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .custom-err {
+    margin: 0;
+    font-size: 11px;
+    color: var(--danger);
+  }
+
+  .best {
+    min-height: 1.2em;
+    margin: 0;
+    font-size: 12px;
+    color: #9ca3af;
+  }
+
+  .best[hidden] {
+    display: none;
+  }
+
+  /* 成绩贴纸，和手速测试共用两张图 */
+  .pat {
+    width: 84px;
+    height: 84px;
+    object-fit: contain;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
+  .pat[hidden] {
+    display: none;
+  }
+
+  .pat-pop {
+    animation: pat-in 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  }
+
+  @keyframes pat-in {
+    from { opacity: 0; transform: scale(0.82); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  .tail {
+    padding: 0 24px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .retry {
+    display: block;
+    width: 100%;
+    height: 48px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 650;
+    color: #fff;
+    cursor: pointer;
+    background: var(--primary);
+    border: none;
+    border-radius: 12px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .retry:active {
+    opacity: 0.9;
+  }
+
+  .retry[hidden] {
+    display: none;
+  }
+
+  /* 彩蛋：宝宝巴士回来的弹窗 */
+  .baby-img {
+    display: block;
+    width: 104px;
+    height: auto;
+    margin: 0 auto 12px;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
+  .baby .dialog-title {
+    margin-bottom: 18px;
+    color: var(--text);
+  }
+
+  .baby-close {
+    width: 100%;
+    height: 44px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 650;
+    color: #fff;
+    cursor: pointer;
+    background: var(--primary);
+    border: none;
+    border-radius: 10px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .baby-close:active {
+    opacity: 0.9;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pad { transition: none; }
+    .pat-pop { animation: none; }
+  }
+</style>
+</head>
+<body class="game-body">
+
+  <header class="game-head">
+    <a class="back" href="../home.html" aria-label="返回目录">‹</a>
+    <span class="game-title">时间感知</span>
+    <span class="game-sub">3–9 秒</span>
+  </header>
+
+  <main class="stage">
+    <div class="play-area">
+      <p class="readout" id="readout">
+        <b id="value">—</b>
+        <span id="meta">目标秒数</span>
+        <span id="sub" hidden></span>
+      </p>
+
+      <button class="pad" id="pad" type="button" data-mode="idle" aria-label="开始">
+        <span class="pad-label" id="label">开始</span>
+      </button>
+
+      <p class="hint" id="hint"></p>
+
+      <div class="custom" id="custom">
+        <button class="custom-open" id="customOpen" type="button">自己定时间</button>
+        <div class="custom-box" id="customBox" hidden>
+          <input class="custom-input" id="customInput" type="text" inputmode="decimal"
+                 autocomplete="off" placeholder="10" aria-label="自定义秒数">
+          <span class="custom-unit">秒</span>
+          <button class="custom-ok" id="customOk" type="button">用这个</button>
+          <button class="custom-back" id="customBack" type="button" hidden>恢复随机</button>
+        </div>
+        <p class="custom-err" id="customErr" hidden></p>
+      </div>
+
+      <p class="best" id="best" hidden></p>
+
+      <img class="pat" id="pat" src="../assets/pat-1.png" alt="" hidden>
+    </div>
+
+    <div class="tail">
+      <button class="retry" id="retry" type="button" hidden>重新测试</button>
+    </div>
+  </main>
+
+  <div class="overlay baby" id="babyDlg" hidden>
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="babyTitle">
+      <img class="baby-img" src="../assets/baby-pat.png" alt="">
+      <p class="dialog-title" id="babyTitle">宝宝快把手机还给家长</p>
+      <button class="baby-close" id="babyClose" type="button">知道了</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================================================
+       可调参数
+       测试或临时改规则时，在本脚本之前定义 window.GAME_CONFIG 即可，
+       例如 { eggRate: 1 } 让每局都抽到 9.178 秒。
+       ============================================================ */
+
+    var MIN_TARGET = 3.00;          /* 普通目标下限（秒） */
+    var MAX_TARGET = 9.17;          /* 普通目标上限（秒） */
+    var EGG_TARGET = 9.178;         /* 彩蛋目标（秒，三位小数） */
+    var EGG_RATE = 0.09178;         /* 抽中彩蛋目标的概率 9.178% */
+
+    var BEST_KEY = 'time.best.rel'; /* 个人最佳：最小相对误差（%） */
+
+    /* 彩蛋：连续几局误差超过阈值，直接送去宝宝巴士 */
+    var BABY_RATE = 50;
+    var BABY_RUNS = 3;
+    var BABY_URL = 'https://www.iqiyi.com/so/q_%E5%AE%9D%E5%AE%9D%E5%B7%B4%E5%A3%AB%E5%8A%A8%E7%94%BB%E7%89%87%E5%85%A8%E9%9B%86';
+    /* 手机上 www.iqiyi.com/so/... 会被重定向到 iQiyi 首页，得用移动版搜索地址；
+       参数名是 key 不是 q，用 q 会渲染成「数据获取失败」 */
+    var BABY_URL_MOBILE = 'https://m.iqiyi.com/search.html?key=' +
+                          encodeURIComponent('宝宝巴士动画片全集');
+    var BABY_KEY = 'time.baby.hit';
+    var BABY_DELAY = 1200;          /* 结算先露个脸，再跳走 */
+
+    function cfg(key, def) {
+      var c = window.GAME_CONFIG || {};
+      return typeof c[key] === 'number' ? c[key] : def;
+    }
+
+    /* 测试用：?t=6 把目标钉死在 6 秒，方便验时序 */
+    var TEST_TARGET = 0;
+
+    try {
+      var tm = /[?&]t=([\d.]+)/.exec(String(window.location.search || ''));
+      if (tm) {
+        TEST_TARGET = parseFloat(tm[1]);
+      }
+    } catch (err) {
+      TEST_TARGET = 0;
+    }
+
+    /* ---------- DOM ---------- */
+
+    var pad = document.getElementById('pad');
+    var labelEl = document.getElementById('label');
+    var readoutEl = document.getElementById('readout');
+    var valueEl = document.getElementById('value');
+    var metaEl = document.getElementById('meta');
+    var subEl = document.getElementById('sub');
+    var hintEl = document.getElementById('hint');
+    var bestEl = document.getElementById('best');
+    var retryEl = document.getElementById('retry');
+    var patEl = document.getElementById('pat');
+
+    var customEl = document.getElementById('custom');
+    var customOpen = document.getElementById('customOpen');
+    var customBox = document.getElementById('customBox');
+    var customInput = document.getElementById('customInput');
+    var customOk = document.getElementById('customOk');
+    var customBack = document.getElementById('customBack');
+    var customErr = document.getElementById('customErr');
+
+    var babyDlg = document.getElementById('babyDlg');
+    var babyClose = document.getElementById('babyClose');
+
+    /* ---------- 状态 ---------- */
+
+    var mode = 'idle';              /* idle | play | over */
+    var target = { ms: 0, text: '' };
+    var startedAt = 0;
+    var customMs = 0;               /* 0 = 用随机目标 */
+    var badStreak = 0;              /* 连续几局误差超 50% */
+
+    /* ---------- 目标秒数 ---------- */
+
+    function fixedTarget() {
+      var fixed = cfg('fixedTarget', 0);
+      return fixed > 0 ? fixed : 0;
+    }
+
+    /* 秒数显示：两位小数够用就两位，否则三位 */
+    function fmtSec(v) {
+      var s2 = v.toFixed(2);
+      return Math.abs(parseFloat(s2) - v) < 1e-6 ? s2 : v.toFixed(3);
+    }
+
+    function pickTarget() {
+      /* 手动定过就用手动的，不参与随机和彩蛋 */
+      if (customMs > 0) {
+        return { ms: customMs, text: fmtSec(customMs / 1000) };
+      }
+
+      var fixed = TEST_TARGET || fixedTarget();
+
+      if (fixed) {
+        return { ms: Math.round(fixed * 1000), text: String(fixed) };
+      }
+
+      if (Math.random() < cfg('eggRate', EGG_RATE)) {
+        return { ms: Math.round(EGG_TARGET * 1000), text: EGG_TARGET.toFixed(3) };
+      }
+
+      var lo = cfg('minTarget', MIN_TARGET);
+      var hi = cfg('maxTarget', MAX_TARGET);
+      var v = Math.round((lo + Math.random() * (hi - lo)) * 100) / 100;
+
+      return { ms: Math.round(v * 1000), text: v.toFixed(2) };
+    }
+
+    /* ---------- 个人最佳 ---------- */
+
+    function readBest() {
+      try {
+        var v = parseFloat(window.localStorage.getItem(BEST_KEY));
+        return isFinite(v) && v > 0 ? v : 0;
+      } catch (err) {
+        return 0;
+      }
+    }
+
+    function writeBest(v) {
+      try {
+        window.localStorage.setItem(BEST_KEY, String(v));
+      } catch (err) {
+        /* 存不进去就不显示，不影响玩 */
+      }
+    }
+
+    /* ---------- 判档（按相对误差百分比） ---------- */
+
+    function evaluate(rel) {
+      if (rel <= 0.5) {
+        return { text: '检测到非人类操作，请重新验证', sticker: '' };
+      }
+      if (rel <= 1.9) {
+        return { text: '呦呵，蒙的挺准', sticker: 'pat-3' };
+      }
+      if (rel <= 4) {
+        return { text: '正常人类水平', sticker: 'pat-1' };
+      }
+      if (rel <= 8) {
+        return { text: '拉完了', sticker: 'pat-2' };
+      }
+      return { text: '你数的是 ' + target.text + ' 秒吗', sticker: 'pat-2' };
+    }
+
+    function showSticker(name) {
+      if (!name) {
+        patEl.hidden = true;
+        return;
+      }
+
+      patEl.src = '../assets/' + name + '.png';
+      patEl.hidden = false;
+      patEl.classList.remove('pat-pop');
+      void patEl.offsetWidth;
+      patEl.classList.add('pat-pop');
+    }
+
+    /* ---------- 三段状态 ---------- */
+
+    function resetIdle() {
+      mode = 'idle';
+      target = pickTarget();
+
+      readoutEl.hidden = false;
+      valueEl.textContent = target.text;
+      metaEl.textContent = '目标秒数';
+      subEl.hidden = true;
+      hintEl.textContent = '心里默数 ' + target.text + ' 秒，到了就按停';
+
+      labelEl.textContent = '开始';
+      pad.dataset.mode = 'idle';
+      pad.setAttribute('aria-label', '开始');
+
+      customEl.hidden = false;
+      retryEl.hidden = true;
+      patEl.hidden = true;
+      bestEl.hidden = true;
+    }
+
+    function start() {
+      mode = 'play';
+      startedAt = performance.now();
+
+      /* 计时期间屏幕上不留任何数字 */
+      readoutEl.hidden = true;
+      hintEl.textContent = '数到 ' + target.text + ' 秒就按';
+      bestEl.hidden = true;
+      customEl.hidden = true;
+
+      labelEl.textContent = '按停';
+      pad.dataset.mode = 'play';
+      pad.setAttribute('aria-label', '按停');
+
+      retryEl.hidden = true;
+      patEl.hidden = true;
+    }
+
+    function stop() {
+      var used = performance.now() - startedAt;
+      var err = used - target.ms;
+      var rel = Math.abs(err) / target.ms * 100;
+      var grade = evaluate(rel);
+
+      mode = 'over';
+
+      readoutEl.hidden = false;
+      valueEl.textContent = (err < 0 ? '-' : '+') + (Math.abs(err) / 1000).toFixed(3);
+      metaEl.textContent = '目标 ' + target.text + ' 秒';
+      subEl.hidden = false;
+      subEl.textContent = '你按了 ' + (used / 1000).toFixed(3) + ' 秒 · ' +
+                          (err < 0 ? '快了 ' : '慢了 ') + rel.toFixed(2) + '%';
+      hintEl.textContent = grade.text;
+
+      labelEl.textContent = '结束';
+      pad.dataset.mode = 'over';
+      pad.setAttribute('aria-label', '已结束');
+
+      showSticker(grade.sticker);
+
+      /* 个人最佳：按相对误差记，不同目标之间可以比 */
+      var best = readBest();
+      var isNew = !best || rel < best;
+
+      if (isNew) {
+        writeBest(rel);
+        best = rel;
+      }
+
+      bestEl.hidden = false;
+      bestEl.textContent = '个人最佳 ' + best.toFixed(2) + '%' + (isNew ? '（新纪录）' : '');
+
+      retryEl.hidden = false;
+
+      /* 连续几局离谱就送去宝宝巴士 */
+      if (rel > cfg('badRate', BABY_RATE)) {
+        badStreak += 1;
+      } else {
+        badStreak = 0;
+      }
+
+      if (badStreak >= cfg('badRuns', BABY_RUNS)) {
+        badStreak = 0;
+        goBabyBus();
+      }
+    }
+
+    /* ---------- 彩蛋：宝宝巴士 ---------- */
+
+    function goBabyBus() {
+      try {
+        window.sessionStorage.setItem(BABY_KEY, '1');
+      } catch (err) {
+        /* 存不进去也要跳 */
+      }
+
+      /* badUrl / badUrlMobile 只在调试时用得上，正式按设备选地址 */
+      var c = window.GAME_CONFIG || {};
+      var mobile = isMobile();
+      var fallback = mobile ? BABY_URL_MOBILE : BABY_URL;
+      var url = typeof c[mobile ? 'badUrlMobile' : 'badUrl'] === 'string'
+        ? c[mobile ? 'badUrlMobile' : 'badUrl']
+        : fallback;
+
+      window.setTimeout(function () {
+        window.location.href = url;
+      }, BABY_DELAY);
+    }
+
+    function isMobile() {
+      var ua = window.navigator.userAgent || '';
+
+      if (/Android|iPhone|iPad|iPod|Windows Phone|HarmonyOS|Mobile/i.test(ua)) {
+        return true;
+      }
+
+      /* 触屏 + 窄屏：平板、手机桌面模式都算 */
+      var coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      var narrow = window.matchMedia && window.matchMedia('(max-width: 820px)').matches;
+
+      return !!(coarse && narrow);
+    }
+
+    function checkBabyReturn() {
+      var hit = false;
+
+      try {
+        hit = window.sessionStorage.getItem(BABY_KEY) === '1';
+      } catch (err) {
+        return;
+      }
+
+      if (!hit) {
+        return;
+      }
+
+      try {
+        window.sessionStorage.removeItem(BABY_KEY);
+      } catch (err) {
+        /* 忽略 */
+      }
+
+      babyDlg.hidden = false;
+    }
+
+    babyClose.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+      babyDlg.hidden = true;
+    });
+
+    /* 点暗色背景也能关 */
+    babyDlg.addEventListener('pointerdown', function (event) {
+      if (event.target === babyDlg) {
+        babyDlg.hidden = true;
+      }
+    });
+
+    /* 从宝宝巴士点回来时可能命中 bfcache，页面不会重新加载，只能靠 pageshow */
+    window.addEventListener('pageshow', checkBabyReturn);
+
+    /* ---------- 自己定时间 ---------- */
+
+    function applyCustom() {
+      var raw = String(customInput.value || '').trim().replace(/,/g, '.');
+      var v = parseFloat(raw);
+
+      if (!isFinite(v) || v < 0.5 || v > 120) {
+        customErr.textContent = '填 0.5 到 120 之间的秒数';
+        customErr.hidden = false;
+        return;
+      }
+
+      customMs = Math.round(v * 1000);
+      customErr.hidden = true;
+      customBack.hidden = false;
+      customInput.value = fmtSec(customMs / 1000);
+      resetIdle();
+    }
+
+    customOpen.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+
+      customBox.hidden = false;
+      customOpen.hidden = true;
+      customErr.hidden = true;
+      customBack.hidden = !customMs;
+      customInput.value = customMs ? fmtSec(customMs / 1000) : '';
+
+      try {
+        customInput.focus();
+      } catch (err) {
+        /* 忽略 */
+      }
+    });
+
+    customOk.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+      applyCustom();
+    });
+
+    customInput.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        applyCustom();
+      }
+    });
+
+    customBack.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+
+      customMs = 0;
+      customInput.value = '';
+      customBack.hidden = true;
+      customBox.hidden = true;
+      customOpen.hidden = false;
+      customErr.hidden = true;
+      resetIdle();
+    });
+
+    /* ---------- 交互 ---------- */
+
+    pad.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+
+      if (mode === 'idle') {
+        start();
+        return;
+      }
+
+      if (mode === 'play') {
+        stop();
+      }
+    });
+
+    /* 手机上长按按钮会弹菜单，挡掉 */
+    pad.addEventListener('contextmenu', function (event) {
+      event.preventDefault();
+    });
+
+    retryEl.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+
+      if (mode === 'over') {
+        resetIdle();
+      }
+    });
+
+    resetIdle();
+    checkBabyReturn();
+  })();
+  </script>
+
+  <script src="../js/starfield.js"></script>
+  <script>
+  /* 三个整活脚本放到 load 之后再拉，先让首屏出来 */
+  (function () {
+    function pull() {
+      ['prank.js', 'roji.js', 'manager.js'].forEach(function (name) {
+        var s = document.createElement('script');
+        s.src = '../js/' + name;
+        document.body.appendChild(s);
+      });
+    }
+    if (document.readyState === 'complete') { pull(); }
+    else { window.addEventListener('load', pull); }
+  })();
+  </script>
+  <script src="../js/egg.js"></script>
+
+</body>
+</html>

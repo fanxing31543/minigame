@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b1e">
+<title>手速测试 · MINIGAME</title>
+<link rel="icon" href="../assets/favicon.png">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  /* 本页独有样式，随游戏一起放在这个文件里 */
+  .stage {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .play-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 0 20px;
+    text-align: center;
+  }
+
+  .readout {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .readout b {
+    font-size: 42px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.2s ease;
+  }
+
+  .readout b.is-jump {
+    color: var(--danger);
+  }
+
+  .readout span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .pad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: min(64vw, 260px);
+    aspect-ratio: 1;
+    padding: 0;
+    font-family: inherit;
+    color: #fff;
+    cursor: pointer;
+    background: var(--primary);
+    border: none;
+    border-radius: 50%;
+    touch-action: manipulation;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.08s ease, background-color 0.18s ease, color 0.18s ease;
+  }
+
+  .pad:active {
+    transform: scale(0.97);
+  }
+
+  .pad[data-mode="play"] {
+    background: #111827;
+  }
+
+  .pad[data-mode="over"] {
+    color: #64748b;
+    background: #cbd5e1;
+    pointer-events: none;
+  }
+
+  .pad[data-mode="locked"] {
+    color: #94a3b8;
+    background: #e2e8f0;
+    pointer-events: none;
+  }
+
+  .pad[data-mode="play"] .pad-label {
+    display: none;
+  }
+
+  .pad[data-mode="idle"] .pad-count,
+  .pad[data-mode="over"] .pad-count,
+  .pad[data-mode="locked"] .pad-count {
+    display: none;
+  }
+
+  .pad-count {
+    font-size: 68px;
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .pad-label {
+    font-size: 18px;
+    font-weight: 650;
+    letter-spacing: 0.04em;
+  }
+
+  .hint {
+    min-height: 1.6em;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  /* 成绩贴纸：20~79 次一张，20 次以下另一张 */
+  .pat {
+    width: 84px;
+    height: 84px;
+    object-fit: contain;
+    -webkit-user-drag: none;
+    user-select: none;
+  }
+
+  .pat[hidden] {
+    display: none;
+  }
+
+  .pat-pop {
+    animation: pat-in 0.26s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  }
+
+  @keyframes pat-in {
+    from { opacity: 0; transform: scale(0.82); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* 重新测试按钮：和大圆盘分开，单独压在底部 */
+  .tail {
+    padding: 0 24px calc(24px + env(safe-area-inset-bottom));
+  }
+
+  .retry {
+    display: block;
+    width: 100%;
+    height: 48px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 650;
+    color: #fff;
+    cursor: pointer;
+    background: var(--primary);
+    border: none;
+    border-radius: 12px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .retry:active {
+    opacity: 0.9;
+  }
+
+  .retry:disabled {
+    color: #94a3b8;
+    cursor: not-allowed;
+    background: #e2e8f0;
+  }
+
+  .retry[hidden] {
+    display: none;
+  }
+
+  .dlg-sub {
+    margin: 0 0 18px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+  }
+
+  .dlg-btn {
+    width: 100%;
+    height: 44px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    background: var(--primary);
+    border: none;
+    border-radius: 10px;
+  }
+</style>
+</head>
+<body class="game-body">
+
+  <header class="game-head">
+    <a class="back" href="../home.html" aria-label="返回目录">‹</a>
+    <span class="game-title">手速测试</span>
+    <span class="game-sub">10 秒</span>
+  </header>
+
+  <main class="stage">
+    <div class="play-area">
+      <p class="readout">
+        <b id="value">10.0</b>
+        <span id="meta">剩余秒数</span>
+      </p>
+
+      <button class="pad" id="pad" type="button" data-mode="idle" aria-label="开始游戏">
+        <span class="pad-count" id="count">0</span>
+        <span class="pad-label" id="label">开始</span>
+      </button>
+
+      <p class="hint" id="hint">10 秒内尽可能快地点击</p>
+
+      <img class="pat" id="pat" src="../assets/pat-1.png" alt="" hidden>
+    </div>
+
+    <div class="tail">
+      <button class="retry" id="retry" type="button" hidden>重新测试</button>
+    </div>
+  </main>
+
+  <div class="overlay" id="dlg" hidden>
+    <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dlg-title">
+      <p class="dialog-title" id="dlg-title"></p>
+      <p class="dlg-sub" id="dlg-sub"></p>
+      <button class="dlg-btn" id="dlg-btn" type="button">知道了</button>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ============================================================
+       可调参数
+       需要临时改概率时，在本脚本之前定义 window.GAME_CONFIG 即可，
+       例如 { breakRate: 0.5 }，不改这里也能调。
+       ============================================================ */
+    var DURATION = 10000;                        /* 每局 10 秒 */
+
+    var ZA_TARGET = 325;                         /* D 的目标点击数 */
+    var ZA_FROM = 3000;                          /* D 在剩余 3~7 秒之间触发 */
+    var ZA_TO = 7000;
+    var ARTHRITIS_RUNS = 3;                      /* A 连跑几局触发 */
+    var LOCK_SECONDS = 30;                       /* A 锁定时长 */
+
+    /* 概率每次现场读取，方便调参或测试时临时覆盖 */
+    function rate(key, def) {
+      var c = window.GAME_CONFIG || {};
+      return typeof c[key] === 'number' ? c[key] : def;
+    }
+
+    /* ---------- DOM ---------- */
+
+    var pad = document.getElementById('pad');
+    var countEl = document.getElementById('count');
+    var labelEl = document.getElementById('label');
+    var valueEl = document.getElementById('value');
+    var metaEl = document.getElementById('meta');
+    var hintEl = document.getElementById('hint');
+    var retryEl = document.getElementById('retry');
+    var patEl = document.getElementById('pat');
+
+    var overlay = document.getElementById('dlg');
+    var dlgTitle = document.getElementById('dlg-title');
+    var dlgSub = document.getElementById('dlg-sub');
+    var dlgBtn = document.getElementById('dlg-btn');
+
+    /* ---------- 状态 ---------- */
+
+    var mode = 'idle';          /* idle | play | over | locked */
+    var count = 0;
+    var endAt = 0;
+    var tickId = 0;
+    var lockId = 0;
+
+    var runsDone = 0;           /* 本次会话完成的局数 */
+    var eggs = { a: false, b: false, c: false, d: false, e: false };
+
+    var jumpCuts = [];          /* C 待执行的时间削减 */
+    var zaPlanned = false;      /* D 本局是否会停表 */
+    var zaAt = 0;
+    var zaFrozen = false;
+
+    /* ---------- 弹窗队列 ---------- */
+
+    var dlgQueue = [];
+    var dlgOpen = false;
+    var dlgJob = null;
+
+    function queueDialogs(jobs) {
+      for (var i = 0; i < jobs.length; i++) {
+        dlgQueue.push(jobs[i]);
+      }
+      if (!dlgOpen) {
+        nextDialog();
+      }
+    }
+
+    function nextDialog() {
+      var job = dlgQueue.shift();
+      if (!job) {
+        dlgOpen = false;
+        return;
+      }
+      dlgOpen = true;
+      dlgJob = job;
+      dlgTitle.textContent = job.title;
+      dlgSub.textContent = job.sub || '';
+      overlay.hidden = false;
+    }
+
+    dlgBtn.addEventListener('click', function () {
+      overlay.hidden = true;
+      var job = dlgJob;
+      dlgJob = null;
+      if (job && typeof job.onClose === 'function') {
+        job.onClose();
+      }
+      nextDialog();
+    });
+
+    /* ---------- 工具 ---------- */
+
+    function seconds(ms) {
+      return (Math.max(0, ms) / 1000).toFixed(1);
+    }
+
+    function flashJump() {
+      valueEl.classList.add('is-jump');
+      window.setTimeout(function () {
+        valueEl.classList.remove('is-jump');
+      }, 220);
+    }
+
+    function isComplete() {
+      return eggs.a && eggs.b && eggs.c && eggs.d && !eggs.e;
+    }
+
+    /* ---------- 开局 ---------- */
+
+    function planJumps() {
+      var times = Math.random() < 0.5 ? 1 : 2;
+      var list = [];
+
+      for (var i = 0; i < times; i++) {
+        list.push({
+          at: 1500 + Math.floor(Math.random() * 5500),   /* 剩余 1.5~7 秒间 */
+          cut: 2000 + Math.floor(Math.random() * 2000)   /* 每次砍 2~4 秒 */
+        });
+      }
+
+      list.sort(function (a, b) { return b.at - a.at; });
+      return list;
+    }
+
+    function start() {
+      mode = 'play';
+      count = 0;
+      jumpCuts = [];
+      zaPlanned = false;
+      zaFrozen = false;
+      zaAt = 0;
+
+      countEl.textContent = '0';
+      valueEl.textContent = seconds(DURATION);
+      metaEl.textContent = '剩余秒数';
+      hintEl.textContent = '再快一点';
+      pad.dataset.mode = 'play';
+      pad.setAttribute('aria-label', '连点区域');
+      retryEl.hidden = true;
+      patEl.hidden = true;
+
+      /* 两个彩蛋独立判定；同时命中时 D 优先 */
+      var rollZa = Math.random() < rate('zaRate', 0.30);
+      var rollJump = Math.random() < rate('jumpRate', 0.20);
+
+      if (rollJump && !rollZa) {
+        jumpCuts = planJumps();
+      }
+
+      if (rollZa) {
+        zaPlanned = true;
+        zaAt = ZA_FROM + Math.random() * (ZA_TO - ZA_FROM);
+      }
+
+      endAt = performance.now() + DURATION;
+      window.clearInterval(tickId);
+      tickId = window.setInterval(tick, 50);
+    }
+
+    /* ---------- 每帧 ---------- */
+
+    function tick() {
+      if (mode !== 'play') {
+        return;
+      }
+
+      /* D：时间被冻结，只更新进度 */
+      if (zaFrozen) {
+        metaEl.textContent = count + ' / ' + ZA_TARGET;
+        if (count >= ZA_TARGET) {
+          finish();
+        }
+        return;
+      }
+
+      var left = endAt - performance.now();
+
+      /* C：到点直接砍掉剩余时间 */
+      while (jumpCuts.length && left <= jumpCuts[0].at) {
+        endAt -= jumpCuts.shift().cut;
+        eggs.c = true;
+        flashJump();
+        left = endAt - performance.now();
+      }
+
+      /* D：到达触发点就停表 */
+      if (zaPlanned && left <= zaAt) {
+        zaPlanned = false;
+
+        if (count <= ZA_TARGET) {
+          zaFrozen = true;
+          eggs.d = true;
+          valueEl.textContent = seconds(left);
+          metaEl.textContent = count + ' / ' + ZA_TARGET;
+          hintEl.textContent = '咋瓦鲁多！时间停止，点满 ' + ZA_TARGET + ' 次';
+          return;
+        }
+      }
+
+      if (left <= 0) {
+        finish();
+        return;
+      }
+
+      valueEl.textContent = seconds(left);
+    }
+
+    /* ---------- 结算 ---------- */
+
+    function evaluate(n) {
+      var perSec = (n / (DURATION / 1000)).toFixed(1);
+
+      if (n < 20) return '平均每秒 ' + perSec + ' 次 · 手指还没热身吧';
+      if (n < 40) return '平均每秒 ' + perSec + ' 次 · 正常人类水平';
+      if (n < 60) return '平均每秒 ' + perSec + ' 次 · 手速不错';
+      if (n < 80) return '平均每秒 ' + perSec + ' 次 · 你这手是借来的吧';
+      return '平均每秒 ' + perSec + ' 次 · 检测到非人类操作，请重新验证';
+    }
+
+    /* 成绩贴纸：20 次以下一张，20~79 次另一张，80 次以上不给 */
+    function showSticker(n) {
+      var src = '';
+
+      if (n < 20) {
+        src = '../assets/pat-2.png';
+      } else if (n <= 79) {
+        src = '../assets/pat-1.png';
+      }
+
+      if (!src) {
+        patEl.hidden = true;
+        return;
+      }
+
+      patEl.src = src;
+      patEl.hidden = false;
+      patEl.classList.remove('pat-pop');
+      void patEl.offsetWidth;
+      patEl.classList.add('pat-pop');
+    }
+
+    function finish() {
+      window.clearInterval(tickId);
+      mode = 'over';
+      runsDone += 1;
+
+      var zaDone = zaFrozen;
+      var broke = Math.random() < rate('breakRate', 0.10);
+      var finalCount = broke ? 0 : count;
+
+      if (broke) {
+        eggs.b = true;
+      }
+
+      valueEl.textContent = String(finalCount);
+      metaEl.textContent = '次';
+
+      if (!broke && zaDone) {
+        hintEl.textContent = '叮！已完成今日325大学习';
+      } else {
+        hintEl.textContent = evaluate(finalCount);
+      }
+
+      labelEl.textContent = '结束';
+      pad.dataset.mode = 'over';
+      pad.setAttribute('aria-label', '已结束');
+
+      showSticker(finalCount);
+
+      retryEl.hidden = false;
+      retryEl.disabled = false;
+      retryEl.textContent = '重新测试';
+
+      var jobs = [];
+
+      /* 先 B */
+      if (broke) {
+        jobs.push({
+          title: '刚刚服务器卡顿啦！',
+          sub: '本次成绩已作废，点击数按 0 计算。'
+        });
+      }
+
+      /* 再 A */
+      if (runsDone % ARTHRITIS_RUNS === 0 && !eggs.a) {
+        eggs.a = true;
+        jobs.push({
+          title: '关节炎犯了',
+          sub: '连续测试 ' + ARTHRITIS_RUNS + ' 次，小游戏暂停 ' + LOCK_SECONDS + ' 秒。',
+          onClose: startLock
+        });
+      }
+
+      /* 最后 E */
+      if (isComplete()) {
+        eggs.e = true;
+        jobs.push({
+          title: '还没玩够啊喂！！！',
+          sub: '四个彩蛋全被你挖出来了。'
+        });
+      }
+
+      if (jobs.length) {
+        queueDialogs(jobs);
+      }
+    }
+
+    /* ---------- A：锁定与解锁 ---------- */
+
+    /* 锁定时间点存起来：退出本页再进来，休息时间接着算，不能靠跳走躲掉 */
+    var LOCK_KEY = 'speed.lock.until';
+
+    function readLockUntil() {
+      try {
+        return parseInt(window.localStorage.getItem(LOCK_KEY), 10) || 0;
+      } catch (err) {
+        return 0;
+      }
+    }
+
+    function writeLockUntil(ts) {
+      try {
+        window.localStorage.setItem(LOCK_KEY, String(ts));
+      } catch (err) {
+        /* 存不进去就只在当前页锁 */
+      }
+    }
+
+    function clearLock() {
+      try {
+        window.localStorage.removeItem(LOCK_KEY);
+      } catch (err) {
+        /* 忽略 */
+      }
+    }
+
+    function startLock() {
+      var until = Date.now() + LOCK_SECONDS * 1000;
+      writeLockUntil(until);
+      runLock(until);
+    }
+
+    /* 从 until 这个时间点开始倒数，跨页面恢复也走这里 */
+    function runLock(until) {
+      mode = 'locked';
+
+      pad.dataset.mode = 'locked';
+      labelEl.textContent = '暂停';
+      retryEl.hidden = false;
+      retryEl.disabled = true;
+      hintEl.textContent = '手先休息一下';
+
+      window.clearInterval(lockId);
+
+      var paint = function () {
+        var left = Math.ceil((until - Date.now()) / 1000);
+
+        if (left <= 0) {
+          window.clearInterval(lockId);
+          clearLock();
+          resetIdle();
+          return;
+        }
+
+        retryEl.textContent = '还需 ' + left + ' 秒';
+      };
+
+      paint();
+      lockId = window.setInterval(paint, 250);
+    }
+
+    function resetIdle() {
+      mode = 'idle';
+      count = 0;
+
+      countEl.textContent = '0';
+      valueEl.textContent = seconds(DURATION);
+      metaEl.textContent = '剩余秒数';
+      hintEl.textContent = '10 秒内尽可能快地点击';
+      labelEl.textContent = '开始';
+      pad.dataset.mode = 'idle';
+      pad.setAttribute('aria-label', '开始游戏');
+      retryEl.hidden = true;
+      retryEl.disabled = false;
+      retryEl.textContent = '重新测试';
+      patEl.hidden = true;
+    }
+
+    /* ---------- 交互 ---------- */
+
+    pad.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+
+      if (mode === 'play') {
+        count += 1;
+        countEl.textContent = String(count);
+
+        /* D：点满目标立刻结算，不等下一帧 */
+        if (zaFrozen && count >= ZA_TARGET) {
+          finish();
+        }
+        return;
+      }
+
+      if (mode === 'idle') {
+        start();
+      }
+    });
+
+    /* 手机上长按按钮会弹菜单，挡掉 */
+    pad.addEventListener('contextmenu', function (event) {
+      event.preventDefault();
+    });
+
+    retryEl.addEventListener('click', function () {
+      if (mode === 'over') {
+        start();
+      }
+    });
+
+    resetIdle();
+
+    /* 上次的 30 秒还没休息完，进来接着站 */
+    var pending = readLockUntil();
+    if (pending > Date.now()) {
+      runLock(pending);
+    } else if (pending) {
+      clearLock();
+    }
+  })();
+  </script>
+
+  <script src="../js/starfield.js"></script>
+  <script>
+  /* 三个整活脚本放到 load 之后再拉，先让首屏出来 */
+  (function () {
+    function pull() {
+      ['prank.js', 'roji.js', 'manager.js'].forEach(function (name) {
+        var s = document.createElement('script');
+        s.src = '../js/' + name;
+        document.body.appendChild(s);
+      });
+    }
+    if (document.readyState === 'complete') { pull(); }
+    else { window.addEventListener('load', pull); }
+  })();
+  </script>
+  <script src="../js/egg.js"></script>
+
+</body>
+</html>
